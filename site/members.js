@@ -78,7 +78,7 @@ async function showProfile(box, language, user, photos) {
     '</option><option value="couple">' + t(language, 'Par', 'Couple') + '</option></select></label><label>' + t(language, 'O meni / nama', 'About me / us') +
     '<textarea name="bio" maxlength="1000"></textarea></label><button class="button primary">' + t(language, 'Sačuvaj profil', 'Save profile') +
     '</button></form><h3 class="photo-heading">' + t(language, 'Profilne slike · do 3', 'Profile photos · up to 3') + '</h3><p>' +
-    t(language, 'JPEG, PNG ili WebP · do 5 MB po slici. Fotografije su dostupne samo tebi u ovoj verziji.', 'JPEG, PNG or WebP · up to 5 MB per photo. Photos are visible only to you in this version.') +
+    t(language, 'JPEG, PNG ili WebP · do 5 MB po slici. Fotografije su privatne, dostupne tebi i administratoru.', 'JPEG, PNG or WebP · up to 5 MB per photo. Photos are private, visible to you and the administrator.') +
     '</p><div class="photos"></div><button class="button secondary signout" type="button">' + t(language, 'Odjavi se', 'Sign out') + '</button><p role="status"></p>';
   const form = box.querySelector('form');
   for (const key of ['nickname','city','kind','bio']) form.elements[key].value = profile[key] || '';

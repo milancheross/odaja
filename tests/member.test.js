@@ -41,3 +41,23 @@ test('photo endpoint rejects slots outside the three supported slots', async () 
     assert.equal(res.statusCode, 400);
   }
 });
+
+test('media targets accept existing listings and demo profiles only', async () => {
+  const { validMediaTarget } = await import('../lib/media-targets.js');
+  assert.equal(validMediaTarget('listing', 'suite'), true);
+  assert.equal(validMediaTarget('demo', 'demo-50'), true);
+  assert.equal(validMediaTarget('demo', 'demo-51'), false);
+  assert.equal(validMediaTarget('listing', '../member'), false);
+  assert.equal(validMediaTarget('member', 'suite'), false);
+});
+test('photo processing removes metadata and rejects non-image content', async () => {
+  const { optimizePhoto } = await import('../lib/photos.js');
+  const { default: sharp } = await import('sharp');
+  const input = await sharp({ create: { width: 32, height: 32, channels: 3, background: 'blue' } })
+    .withExif({ IFD0: { Artist: 'Private test metadata' } }).jpeg().toBuffer();
+  const output = await optimizePhoto(input.toString('base64'));
+  const metadata = await sharp(output).metadata();
+  assert.equal(metadata.format, 'webp');
+  assert.equal(metadata.exif, undefined);
+  await assert.rejects(optimizePhoto(Buffer.from('not an image').toString('base64')));
+});
