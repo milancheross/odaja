@@ -13,13 +13,18 @@ const publicProfile = member => ({
 const fail = (code, status = 400) => Object.assign(new Error(code), { status });
 
 async function passwordHash(password, salt = randomBytes(16).toString('hex')) {
-  const key = await deriveKey(password, salt, 64, { N: 16384, r: 8, p: 1 });
-  return salt + ':' + key.toString('hex');
+  const key = await deriveKey(password, salt, 64, { N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024 });
+  return 'scrypt:131072:8:1:' + salt + ':' + key.toString('hex');
 }
 async function verifyPassword(password, encoded) {
-  const [salt, digest] = encoded.split(':');
-  const calculated = await passwordHash(password, salt);
-  return timingSafeEqual(Buffer.from(calculated.split(':')[1], 'hex'), Buffer.from(digest, 'hex'));
+  const parts = encoded.split(':');
+  const modern = parts.length === 6 && parts[0] === 'scrypt';
+  const salt = modern ? parts[4] : parts[0];
+  const digest = modern ? parts[5] : parts[1];
+  const cost = modern ? Number(parts[1]) : 16384;
+  if (![16384, 131072].includes(cost) || !/^[a-f0-9]{32}$/.test(salt) || !/^[a-f0-9]{128}$/.test(digest)) return false;
+  const key = await deriveKey(password, salt, 64, { N: cost, r: 8, p: 1, maxmem: 256 * 1024 * 1024 });
+  return timingSafeEqual(key, Buffer.from(digest, 'hex'));
 }
 function cookie(req) {
   return (req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith('__Host-odaja='))?.slice(13) || '';
@@ -95,7 +100,7 @@ export default async function handler(req, res) {
         return res.status(201).json({ user: publicProfile(rows[0]), photos: [] });
       }
       const [member] = await sql`SELECT * FROM odaja_members WHERE email = ${email}`;
-      const dummy = '00000000000000000000000000000000:' + '00'.repeat(64);
+      const dummy = 'scrypt:131072:8:1:00000000000000000000000000000000:' + '00'.repeat(64);
       const valid = await verifyPassword(password, member?.password_hash || dummy);
       if (!member || !valid) throw fail('invalid_credentials', 401);
       await createSession(sql, res, member.id);
