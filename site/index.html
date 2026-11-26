@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="{{language}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#030e1c">
+  <meta name="description" content="{{description}}">
+  <link rel="alternate" hreflang="sr-Latn" href="/">
+  <link rel="alternate" hreflang="en" href="/en/">
+  <link rel="icon" href="/assets/door.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <title>ODAJA — {{title}}</title>
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">{{skip}}</a>
+  <img class="hero-photo" src="/assets/belgrade.webp" alt="" fetchpriority="high">
+  <div class="scene-shade"></div>
+  <div class="shell">
+    <header class="header">
+      <a class="brand" href="./"><img src="/assets/door.svg" alt="" width="57" height="65"><span>ODAJA</span></a>
+      <nav class="language" aria-label="SR / EN">
+        <a href="/" lang="sr-Latn" hreflang="sr-Latn" {{srCurrent}}>SR</a><span aria-hidden="true">/</span><a href="/en/" lang="en" hreflang="en" {{enCurrent}}>EN</a>
+      </nav>
+    </header>
+    <main id="main">
+      <section class="hero" aria-labelledby="headline">
+        <h1 id="headline">{{title}}</h1>
+      </section>
+      <nav class="cards" aria-label="ODAJA">
+        <a class="card" href="#events"><img src="/assets/events.webp" alt="" width="420" height="380"><span>{{events}}</span></a>
+        <a class="card" href="#stays"><img src="/assets/stays.webp" alt="" width="420" height="380"><span>{{stays}}</span></a>
+        <a class="card online" href="#online"><img src="/assets/online.webp" alt="" width="420" height="380"><span>{{online}}</span></a>
+      </nav>
+      <nav class="paths" aria-label="{{guests}} / {{hosts}}">
+        <a class="button primary" href="#guests">{{guests}}</a>
+        <a class="button secondary" href="#hosts">{{hosts}}</a>
+      </nav>
+    </main>
+    <footer><span>ODAJA</span><span>{{demo}} · 18+</span></footer>
+  </div>
+  <dialog id="panel" aria-labelledby="panel-title">
+    <div class="panel-inner">
+      <button id="close-panel" class="icon-button" type="button" aria-label="{{close}}">×</button>
+      <div id="panel-content"></div>
+    </div>
+  </dialog>
+</body>
+</html>
