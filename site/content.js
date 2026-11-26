@@ -21,15 +21,31 @@ export const translations = {
 
 export const listings = {
   events: [
-    { id: 'salon', city: 'Beograd', sr: ['Veče u salonu', 'Druženje uz piće za parove i goste koji dolaze sami.'], en: ['Evening in the lounge', 'Drinks and conversation for couples and guests attending solo.'] },
-    { id: 'river', city: 'Novi Sad', sr: ['Druženje kraj Dunava', 'Večernje upoznavanje u manjoj grupi.'], en: ['By the Danube', 'An evening of small-group introductions.'] },
+    { id: 'prezident', city: 'Novi Sad', venue: 'Prezident Hotel', source: 'https://www.prezidenthotel.com/rs/spa-wellness', sr: ['Spa druženje parova u Novom Sadu', 'Predlog susreta uz razgovor i wellness u Prezident Hotelu. Termin, zakup prostora i pravila dolaska čekaju dogovor sa centrom.'], en: ['Couples spa gathering in Novi Sad', 'A proposed social wellness gathering at Prezident Hotel. Date, venue booking and attendance rules await agreement with the venue.'] },
+    { id: 'olympus', city: 'Beograd', venue: 'Club Olympus · Hyatt Regency', source: 'https://www.hyatt.com/en-US/spas/Club-Olympus-Fitness-Centre-and-Spa/home.html', sr: ['Veče upoznavanja parova · Novi Beograd', 'Predlog manjeg druženja uz Club Olympus spa. Organizator, termin i dostupnost prostora još nisu potvrđeni.'], en: ['Couples introductions · New Belgrade', 'A proposed small social gathering at Club Olympus. Organizer, date and venue availability are pending confirmation.'] },
+    { id: 'metropol', city: 'Beograd', venue: 'The Spa · Metropol Palace', source: 'https://www.metropolpalace.com/wp-content/uploads/compendium-2023-ENGL.pdf', sr: ['Wellness susret za parove · Tašmajdan', 'Predlog opuštenog upoznavanja uz spa odmor u Metropol Palace hotelu. Termin i uslovi čekaju potvrdu centra.'], en: ['Couples wellness gathering · Tašmajdan', 'A proposed relaxed social gathering with a spa break at Metropol Palace. Date and conditions await venue confirmation.'] },
   ],
   stays: [
     { id: 'suite', city: 'Beograd', sr: ['Apartman s pogledom', 'Dva sata · 3.500 RSD · Parking'], en: ['Riverside suite', 'Two hours · RSD 3,500 · Parking'] },
     { id: 'studio', city: 'Novi Sad', sr: ['Studio u centru', 'Tri sata · 3.000 RSD'], en: ['Central studio', 'Three hours · RSD 3,000'] },
   ],
-  online: [
-    { id: 'luna', city: 'Beograd', sr: ['Luna', 'Pojedinačni profil · Knjige, muzika i noćne šetnje'], en: ['Luna', 'Solo profile · Books, music and evening walks'] },
-    { id: 'tara', city: 'Novi Sad', sr: ['Tara i Vuk', 'Profil para · Volimo mala druženja i putovanja'], en: ['Tara and Vuk', 'Couple profile · Small gatherings and travel'] },
-  ],
+  online: createDemoProfiles(),
 };
+
+function createDemoProfiles() {
+  const names = ['Luna', 'Mila', 'Tara i Vuk', 'Nina', 'Marko', 'Una i Luka', 'Sara', 'Ivan', 'Ana i Stefan', 'Dunja', 'Nikola', 'Lea i Filip', 'Iva', 'Petar', 'Mina i Ognjen', 'Jana', 'Viktor', 'Tea i Milan', 'Ema', 'Aleksa', 'Lana i Pavle', 'Iskra', 'Mihailo', 'Nika i David', 'Nevena'];
+  const interests = [
+    ['Muzika, kratka putovanja i večernje šetnje.', 'Music, short trips and evening walks.'],
+    ['Wellness, dobra hrana i mirna druženja.', 'Wellness, good food and relaxed company.'],
+    ['Filmovi, knjige i nova poznanstva.', 'Films, books and meeting new people.'],
+    ['Priroda, fotografija i kafa uz razgovor.', 'Nature, photography and conversation over coffee.'],
+    ['Pozorište, dizajn i vikendi van grada.', 'Theatre, design and weekends away.'],
+  ];
+  return Array.from({ length: 50 }, (_, index) => {
+    const name = names[index % names.length] + (index >= names.length ? ' · 2' : '');
+    const age = 26 + index % 25;
+    const interest = interests[index % interests.length];
+    return { id: 'demo-' + (index + 1), city: index % 2 ? 'Novi Sad' : 'Beograd', demo: true, age,
+      sr: [name, age + '+ · ' + interest[0]], en: [name, age + '+ · ' + interest[1]] };
+  });
+}

@@ -1,3 +1,4 @@
+import { showAccount, showDemoChat } from './members.js';
 import { translations, listings } from './content.js';
 
 const language = document.documentElement.lang;
@@ -7,7 +8,7 @@ const content = document.querySelector('#panel-content');
 const catalogs = Object.keys(listings);
 const cityName = (city) => language === 'en' && city === 'Beograd' ? 'Belgrade' : city;
 const titles = { ...copy, 'new-event': copy.event, 'new-stay': copy.stay };
-const pages = ['guests', 'hosts', 'new-event', 'new-stay', ...catalogs];
+const pages = ['guests', 'hosts', 'new-event', 'new-stay', ...catalogs, 'account'];
 let adult = false;
 
 function navigation(destinations) {
@@ -56,14 +57,18 @@ function showCatalog(page) {
   function paintResults() {
     const filtered = select.value ? entries.filter((item) => item.city === select.value) : entries;
     results.innerHTML = filtered.map((item) => '<article class="result"><h3>' + item[language][0] +
-      '</h3><p>' + cityName(item.city) + ' · ' + (page === 'online' ? copy.demoProfile : copy.example) +
-      '</p><p>' + item[language][1] + '</p><button class="button secondary" data-id="' + item.id +
+      '</h3><p>' + cityName(item.city) + ' · ' + (page === 'online' ? copy.demoProfile : (page === 'events' ? (language === 'sr' ? 'Predlog događaja · Nepotvrđen' : 'Proposed event · Unconfirmed') : copy.example)) +
+      '</p>' + (item.venue ? '<p>' + item.venue + '</p><a class="source" href="' + item.source + '" target="_blank" rel="noopener noreferrer">' + (language === 'sr' ? 'Zvanični sajt centra' : 'Official venue website') + '</a>' : '') + '<p>' + item[language][1] + '</p><button class="button secondary" data-id="' + item.id +
       '" type="button">' + action + '</button></article>').join('') || '<p>' + copy.noResults + '</p>';
   }
   select.addEventListener('change', paintResults);
   results.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-id]');
-    if (button) showDemoForm(entries.find((item) => item.id === button.dataset.id), action);
+    if (button) {
+      const item = entries.find((entry) => entry.id === button.dataset.id);
+      if (page === 'online') showDemoChat(content, item, language);
+      else showDemoForm(item, action);
+    }
   });
   paintResults();
 }
@@ -111,11 +116,13 @@ function render() {
     if (panel.open) panel.close();
     return;
   }
-  content.innerHTML = '<h2 id="panel-title">' + titles[page] + '</h2>';
-  if (page === 'guests') content.innerHTML += '<p>' + copy.guestsIntro + '</p>' + navigation(catalogs);
+  content.innerHTML = '<h2 id="panel-title">' + (page === 'account' ? (language === 'sr' ? 'Moj profil' : 'My profile') : titles[page]) + '</h2>';
+  if (page === 'account') showAccount(content, language);
+  if (page === 'guests') content.innerHTML += '<p>' + copy.guestsIntro + '</p>' + navigation(catalogs) + '<p><a class="button primary" href="#account">' + (language === 'sr' ? 'Registracija / Moj profil' : 'Register / My profile') + '</a></p>';
   if (page === 'hosts') content.innerHTML += '<p>' + copy.hostsIntro + '</p>' + navigation(['new-event', 'new-stay']);
   if (catalogs.includes(page)) {
     content.innerHTML += '<p>' + copy[page + 'Intro'] + '</p>';
+    if (page === 'events') content.innerHTML += '<p>' + (language === 'sr' ? 'Tri predloga druženja. Spa centri nisu potvrdili organizaciju, termine ni partnerstvo sa ODAJOM.' : 'Three proposed gatherings. Venues have not confirmed hosting, dates or partnership with ODAJA.') + '</p>';
     showCatalog(page);
   }
   if (page.startsWith('new-')) showDraft(page);
