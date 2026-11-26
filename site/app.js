@@ -12,23 +12,20 @@ const titles = { ...copy, 'new-event': copy.event, 'new-stay': copy.stay };
 const pages = ['guests', 'hosts', 'new-event', 'new-stay', ...catalogs, 'account', 'admin'];
 let adult = false;
 let media = [];
-const illustration = language === 'sr' ? 'AI ilustracija' : 'AI illustration';
 
 function photosFor(item, page) {
   const kind = page === 'online' ? 'demo' : 'listing';
   const custom = media.filter(image => image.kind === kind && image.target_id === item.id);
-  const photos = custom.map(image => ({ slot: image.slot, url: '/api/media?kind=' + kind + '&id=' + item.id + '&slot=' + image.slot + '&v=' + image.version, custom: true }));
-  if (item.image && !photos.some(image => image.slot === 1)) photos.push({ slot: 1, url: item.image, custom: false });
+  const photos = custom.map(image => ({ slot: image.slot, url: '/api/media?kind=' + kind + '&id=' + item.id + '&slot=' + image.slot + '&v=' + image.version }));
+  if (item.image && !photos.some(image => image.slot === 1)) photos.push({ slot: 1, url: item.image });
   return photos.sort((a,b) => a.slot - b.slot);
 }
 
 function imageGallery(item, page, compact = false) {
   const photos = photosFor(item, page);
   if (!photos.length) return '';
-  const caption = photos[0].custom ? (language === 'sr' ? 'Slika oglasa' : 'Listing image') : illustration;
-  return '<figure class="listing-gallery"><img class="listing-photo" src="' + photos[0].url + '" alt="' + item[language][0] + '" width="1200" height="800" loading="lazy"><figcaption>' + caption +
-    '</figcaption>' + (photos.length > 1 && !compact ? '<div class="thumbnails">' + photos.map((image, index) =>
-    '<button type="button" data-photo="' + image.url + '" data-custom="' + image.custom + '" aria-label="' + (language === 'sr' ? 'Prikaži sliku ' : 'Show image ') + (index + 1) + '"><img src="' + image.url + '" alt="" loading="lazy"></button>').join('') + '</div>' : '') + '</figure>';
+  return '<figure class="listing-gallery"><img class="listing-photo" src="' + photos[0].url + '" alt="' + item[language][0] + '" width="1200" height="800" loading="lazy">' + (photos.length > 1 && !compact ? '<div class="thumbnails">' + photos.map((image, index) =>
+    '<button type="button" data-photo="' + image.url + '" aria-label="' + (language === 'sr' ? 'Prikaži sliku ' : 'Show image ') + (index + 1) + '"><img src="' + image.url + '" alt="" loading="lazy"></button>').join('') + '</div>' : '') + '</figure>';
 }
 
 function catalogCard(item, page) {
@@ -44,7 +41,6 @@ function connectGalleries(root) {
   root.querySelectorAll('[data-photo]').forEach(button => button.addEventListener('click', () => {
     const figure = button.closest('figure');
     figure.querySelector('.listing-photo').src = button.dataset.photo;
-    figure.querySelector('figcaption').textContent = button.dataset.custom === 'true' ? (language === 'sr' ? 'Slika oglasa' : 'Listing image') : illustration;
   }));
 }
 
