@@ -1,3 +1,4 @@
+import { showAdmin } from './admin.js';
 import { showAccount, showDemoChat } from './members.js';
 import { translations, listings } from './content.js';
 
@@ -8,8 +9,63 @@ const content = document.querySelector('#panel-content');
 const catalogs = Object.keys(listings);
 const cityName = (city) => language === 'en' && city === 'Beograd' ? 'Belgrade' : city;
 const titles = { ...copy, 'new-event': copy.event, 'new-stay': copy.stay };
-const pages = ['guests', 'hosts', 'new-event', 'new-stay', ...catalogs, 'account'];
+const pages = ['guests', 'hosts', 'new-event', 'new-stay', ...catalogs, 'account', 'admin'];
 let adult = false;
+let media = [];
+const illustration = language === 'sr' ? 'AI ilustracija' : 'AI illustration';
+
+function photosFor(item, page) {
+  const kind = page === 'online' ? 'demo' : 'listing';
+  const custom = media.filter(image => image.kind === kind && image.target_id === item.id);
+  const photos = custom.map(image => ({ slot: image.slot, url: '/api/media?kind=' + kind + '&id=' + item.id + '&slot=' + image.slot + '&v=' + image.version, custom: true }));
+  if (item.image && !photos.some(image => image.slot === 1)) photos.push({ slot: 1, url: item.image, custom: false });
+  return photos.sort((a,b) => a.slot - b.slot);
+}
+
+function imageGallery(item, page, compact = false) {
+  const photos = photosFor(item, page);
+  if (!photos.length) return '';
+  const caption = photos[0].custom ? (language === 'sr' ? 'Slika oglasa' : 'Listing image') : illustration;
+  return '<figure class="listing-gallery"><img class="listing-photo" src="' + photos[0].url + '" alt="' + item[language][0] + '" width="1200" height="800" loading="lazy"><figcaption>' + caption +
+    '</figcaption>' + (photos.length > 1 && !compact ? '<div class="thumbnails">' + photos.map((image, index) =>
+    '<button type="button" data-photo="' + image.url + '" data-custom="' + image.custom + '" aria-label="' + (language === 'sr' ? 'Prikaži sliku ' : 'Show image ') + (index + 1) + '"><img src="' + image.url + '" alt="" loading="lazy"></button>').join('') + '</div>' : '') + '</figure>';
+}
+
+function catalogCard(item, page) {
+  const action = { events: copy.request, stays: copy.inquiry, online: copy.invite }[page];
+  const label = page === 'online' ? copy.demoProfile : page === 'events' ? (language === 'sr' ? 'Predlog događaja · Nepotvrđen' : 'Proposed event · Unconfirmed') : copy.example;
+  return '<article class="result">' + imageGallery(item, page) + '<h3>' + item[language][0] + '</h3><p>' + cityName(item.city) + ' · ' + label +
+    '</p>' + (item.venue ? '<p>' + item.venue + '</p><a class="source" href="' + item.source + '" target="_blank" rel="noopener noreferrer">' +
+    (language === 'sr' ? 'Zvanični sajt centra' : 'Official venue website') + '</a>' : '') + '<p>' + item[language][1] +
+    '</p><button class="button secondary" data-id="' + item.id + '" type="button">' + action + '</button></article>';
+}
+
+function connectGalleries(root) {
+  root.querySelectorAll('[data-photo]').forEach(button => button.addEventListener('click', () => {
+    const figure = button.closest('figure');
+    figure.querySelector('.listing-photo').src = button.dataset.photo;
+    figure.querySelector('figcaption').textContent = button.dataset.custom === 'true' ? (language === 'sr' ? 'Slika oglasa' : 'Listing image') : illustration;
+  }));
+}
+
+function renderFeatured() {
+  const featured = document.querySelector('#featured');
+  featured.innerHTML = '<h2>' + (language === 'sr' ? 'Događaji i apartmani' : 'Events and apartments') + '</h2><div class="featured-grid">' +
+    [...listings.events.map(item => ({ item, page: 'events' })), ...listings.stays.map(item => ({ item, page: 'stays' }))].map(({item, page}) =>
+    '<article><a href="#' + page + '">' + imageGallery(item, page, true) + '<h3>' + item[language][0] + '</h3><p>' + cityName(item.city) +
+    ' · ' + (page === 'events' ? (language === 'sr' ? 'Nepotvrđen predlog' : 'Unconfirmed proposal') : copy.example) + '</p></a></article>').join('') + '</div>';
+}
+
+async function refreshMedia() {
+  try {
+    const response = await fetch('/api/media?manifest=1', { cache: 'no-store' });
+    if (!response.ok) return;
+    media = (await response.json()).media;
+    renderFeatured();
+    if (catalogs.includes(location.hash.slice(1)) && content.querySelector('.results')) render();
+  } catch { /* Default illustrations remain available when custom media cannot load. */ }
+}
+
 
 function navigation(destinations) {
   return '<nav class="panel-nav">' + destinations.map((destination) =>
@@ -56,10 +112,9 @@ function showCatalog(page) {
   const results = content.querySelector('.results');
   function paintResults() {
     const filtered = select.value ? entries.filter((item) => item.city === select.value) : entries;
-    results.innerHTML = filtered.map((item) => '<article class="result"><h3>' + item[language][0] +
-      '</h3><p>' + cityName(item.city) + ' · ' + (page === 'online' ? copy.demoProfile : (page === 'events' ? (language === 'sr' ? 'Predlog događaja · Nepotvrđen' : 'Proposed event · Unconfirmed') : copy.example)) +
-      '</p>' + (item.venue ? '<p>' + item.venue + '</p><a class="source" href="' + item.source + '" target="_blank" rel="noopener noreferrer">' + (language === 'sr' ? 'Zvanični sajt centra' : 'Official venue website') + '</a>' : '') + '<p>' + item[language][1] + '</p><button class="button secondary" data-id="' + item.id +
-      '" type="button">' + action + '</button></article>').join('') || '<p>' + copy.noResults + '</p>';
+    results.innerHTML = filtered.map(item => catalogCard(item, page)).join('') || '<p>' + copy.noResults + '</p>';
+    connectGalleries(results);
+
   }
   select.addEventListener('change', paintResults);
   results.addEventListener('click', (event) => {
@@ -116,8 +171,9 @@ function render() {
     if (panel.open) panel.close();
     return;
   }
-  content.innerHTML = '<h2 id="panel-title">' + (page === 'account' ? (language === 'sr' ? 'Moj profil' : 'My profile') : titles[page]) + '</h2>';
+  content.innerHTML = '<h2 id="panel-title">' + (page === 'admin' ? (language === 'sr' ? 'Administracija slika' : 'Manage images') : page === 'account' ? (language === 'sr' ? 'Moj profil' : 'My profile') : titles[page]) + '</h2>';
   if (page === 'account') showAccount(content, language);
+  if (page === 'admin') showAdmin(content, language);
   if (page === 'guests') content.innerHTML += '<p>' + copy.guestsIntro + '</p>' + navigation(catalogs) + '<p><a class="button primary" href="#account">' + (language === 'sr' ? 'Registracija / Moj profil' : 'Register / My profile') + '</a></p>';
   if (page === 'hosts') content.innerHTML += '<p>' + copy.hostsIntro + '</p>' + navigation(['new-event', 'new-stay']);
   if (catalogs.includes(page)) {
@@ -138,3 +194,7 @@ panel.addEventListener('close', () => {
 });
 window.addEventListener('hashchange', render);
 render();
+
+renderFeatured();
+refreshMedia();
+window.addEventListener('odaja-media-updated', refreshMedia);

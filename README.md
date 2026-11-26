@@ -26,3 +26,12 @@ Pedeset izmišljenih profila imaju jasno označene automatske demo odgovore. Raz
 Tri spa oglasa su nepotvrđeni predlozi. Izvori potvrđuju postojanje spa centara, dok termini, zakup i organizatori čekaju potvrdu.
 
 Lokalni statički pregled pokreće npm run dev. Za lokalni API koristiti Vercel CLI sa Neon okruženjem.
+
+## Administracija fotografija
+
+Administrator nakon prijave otvara Administracija slika u Moj profil, ili /#admin.
+Panel omogućava dodavanje, zamenu i uklanjanje do tri slike svakog oglasa, probnog profila i registrovanog člana. Slike oglasa i probnih profila su javne. Privatne slike registrovanih članova dostupne su vlasniku i administratoru.
+
+Uloga is_admin čuva se u bazi i proverava na svakom administratorskom API zahtevu. Inicijalna aktivacija može se povezati sa postojećim nalogom putem serverskih promenljivih ODAJA_ADMIN_EMAIL i ODAJA_ADMIN_BEFORE. Datum je fiksan, tako da novi nalozi ne dobijaju privilegije pri registraciji. Za naknadnu dodelu koristiti scripts/set-admin.mjs sa serverskim DATABASE_URL i emailom konkretnog registrovanog člana.
+
+Generisane fotografije su označene kao AI ilustracije. Ne prikazuju navedene hotele, njihove goste niti potvrđene događaje.

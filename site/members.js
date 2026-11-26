@@ -1,3 +1,4 @@
+import { preparePhoto } from './photos.js';
 const errors = {
   invalid_credentials: ['Email ili lozinka nisu ispravni. Lozinka mora imati 12–128 znakova.', 'Invalid email or password. Passwords must contain 12–128 characters.'],
   invalid_profile: ['Proveri podatke profila i potvrdi punoletstvo.', 'Check your profile details and confirm you are an adult.'],
@@ -70,7 +71,7 @@ function showAuth(box, language, signup) {
 async function showProfile(box, language, user, photos) {
   const profile = user;
   if (!photos) photos = (await request(language)).photos;
-  box.innerHTML = '<h2 id="panel-title">' + t(language, 'Moj profil', 'My profile') + '</h2><form class="fields">' +
+  box.innerHTML = '<h2 id="panel-title">' + t(language, 'Moj profil', 'My profile') + '</h2>' + (user.is_admin ? '<a class="button secondary" href="#admin">' + t(language, 'Administracija slika', 'Manage images') + '</a>' : '') + '<form class="fields">' +
     field(t(language, 'Nadimak', 'Nickname'), 'nickname', 'text', 'minlength="2" maxlength="40"') +
     '<label>' + t(language, 'Grad', 'City') + '<select name="city"><option>Beograd</option><option>Novi Sad</option></select></label><label>' +
     t(language, 'Tip profila', 'Profile type') + '<select name="kind"><option value="solo">' + t(language, 'Pojedinačni profil', 'Solo profile') +
@@ -121,22 +122,7 @@ async function photoSlot(box, language, slot, present) {
     attempt(box, remove, async () => {
       input.disabled = true;
       try {
-        if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5242880) throw new Error(t(language, 'Izaberi JPEG, PNG ili WebP do 5 MB.', 'Choose a JPEG, PNG or WebP up to 5 MB.'));
-        const bitmap = await createImageBitmap(file);
-        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        bitmap.close();
-        const optimized = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
-        if (!optimized || optimized.size > 2097152) throw new Error(t(language, 'Izaberi manju sliku.', 'Choose a smaller photo.'));
-        const data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result.split(',')[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(optimized);
-        });
+        const data = await preparePhoto(file, language);
         await request(language, { action: 'upload', slot, data });
         present = true;
         refresh();

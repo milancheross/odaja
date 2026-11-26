@@ -1,14 +1,13 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import sharp from 'sharp';
+import { optimizePhoto } from '../lib/photos.js';
 import { database, initialize } from '../lib/database.js';
 
 const deriveKey = promisify(scrypt);
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
-const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 const hash = value => createHash('sha256').update(value).digest('hex');
 const publicProfile = member => ({
-  id: member.id, nickname: member.nickname, city: member.city, kind: member.kind, bio: member.bio
+  id: member.id, nickname: member.nickname, city: member.city, kind: member.kind, bio: member.bio, is_admin: member.is_admin === true
 });
 const fail = (code, status = 400) => Object.assign(new Error(code), { status });
 
@@ -50,7 +49,7 @@ async function rateLimit(sql, key, maximum) {
 async function authenticate(sql, req) {
   const token = cookie(req);
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  const [member] = await sql`SELECT m.id, m.nickname, m.city, m.kind, m.bio FROM odaja_members m
+  const [member] = await sql`SELECT m.id, m.nickname, m.city, m.kind, m.bio, m.is_admin FROM odaja_members m
     JOIN odaja_sessions s ON s.member_id = m.id WHERE s.token_hash = ${hash(token)} AND s.expires_at > now()`;
   return member || null;
 }
@@ -126,17 +125,7 @@ export default async function handler(req, res) {
         await sql`DELETE FROM odaja_photos WHERE member_id = ${member.id} AND slot = ${body.slot}`;
         return res.status(200).json({ ok: true });
       }
-      if (typeof body.data !== 'string' || body.data.length > Math.ceil(MAX_PHOTO_BYTES / 3) * 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.data)) throw fail('invalid_photo');
-      const input = Buffer.from(body.data, 'base64');
-      if (input.length > MAX_PHOTO_BYTES) throw fail('invalid_photo');
-      let output;
-      try {
-        const processor = sharp(input, { limitInputPixels: 25000000, animated: false });
-        const metadata = await processor.metadata();
-        if (!['jpeg','png','webp'].includes(metadata.format)) throw fail('invalid_photo');
-        output = await processor.rotate().resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
-      } catch { throw fail('invalid_photo'); }
-      if (output.length > MAX_PHOTO_BYTES) throw fail('invalid_photo');
+      const output = await optimizePhoto(body.data);
       await sql`INSERT INTO odaja_photos(member_id, slot, image) VALUES (${member.id}, ${body.slot}, decode(${output.toString('base64')}, 'base64'))
         ON CONFLICT (member_id, slot) DO UPDATE SET image = EXCLUDED.image`;
       return res.status(200).json({ ok: true });
