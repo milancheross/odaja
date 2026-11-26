@@ -1,6 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
+const errors = {
+  invalid_credentials: ['Email ili lozinka nisu ispravni. Lozinka mora imati 12–128 znakova.', 'Invalid email or password. Passwords must contain 12–128 characters.'],
+  invalid_profile: ['Proveri podatke profila i potvrdi punoletstvo.', 'Check your profile details and confirm you are an adult.'],
+  registration_failed: ['Registracija nije uspela. Ako već imaš nalog, prijavi se.', 'Registration failed. If you already have an account, sign in.'],
+  unauthorized: ['Prijavi se ponovo.', 'Please sign in again.'],
+  rate_limit: ['Previše pokušaja. Pokušaj ponovo za 15 minuta.', 'Too many attempts. Try again in 15 minutes.'],
+  invalid_photo: ['Slika nije podržana. Izaberi JPEG, PNG ili WebP do 5 MB.', 'Unsupported photo. Choose JPEG, PNG or WebP up to 5 MB.'],
+  service_unavailable: ['Usluga trenutno nije dostupna. Pokušaj ponovo.', 'Service temporarily unavailable. Please try again.'],
+};
+async function request(language, body) {
+  const response = await fetch('/api/member', body ? {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin'
+  } : { credentials: 'same-origin', cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok) {
+    const message = errors[data.error] || errors.service_unavailable;
+    throw new Error(language === 'sr' ? message[0] : message[1]);
+  }
+  return data;
+}
 
-const client = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const t = (language, sr, en) => language === 'sr' ? sr : en;
 const field = (label, name, type, attrs = '') => '<label>' + label + '<input name="' + name + '" type="' + type + '" required ' + attrs + '></label>';
 const status = (box, message) => { box.querySelector('[role="status"]').textContent = message; };
@@ -14,16 +32,12 @@ async function attempt(box, button, operation) {
 
 export async function showAccount(box, language) {
   box.innerHTML = '<h2 id="panel-title">' + t(language, 'Moj profil', 'My profile') + '</h2><p role="status"></p>';
-  if (!client) {
-    showAuth(box, language, true);
-    for (const field of box.querySelectorAll('input, form button')) field.disabled = true;
-    status(box, t(language, 'Registracija se priprema. Aktivacija naloga i čuvanje fotografija biće dostupni nakon povezivanja baze.', 'Registration is being prepared. Accounts and photo storage will be available when the database is connected.'));
-    return;
-  }
-  const { data } = await client.auth.getUser();
-  if (location.hash !== '#account') return;
-  if (data.user) await showProfile(box, language, data.user);
-  else showAuth(box, language, true);
+  try {
+    const result = await request(language);
+    if (location.hash !== '#account') return;
+    if (result.user) await showProfile(box, language, result.user, result.photos);
+    else showAuth(box, language, true);
+  } catch (error) { status(box, error.message); }
 }
 
 function showAuth(box, language, signup) {
@@ -36,25 +50,26 @@ function showAuth(box, language, signup) {
     '<button class="button primary">' + label + '</button></form><button class="button secondary auth-toggle" type="button">' +
     (signup ? t(language, 'Već imam nalog', 'I already have an account') : t(language, 'Napravi nalog', 'Create an account')) +
     '</button><p role="status"></p>';
-  box.querySelector('.auth-toggle').addEventListener('click', () => { if (client) showAuth(box, language, !signup); });
+  box.querySelector('.auth-toggle').addEventListener('click', () => showAuth(box, language, !signup));
   box.querySelector('form').addEventListener('submit', event => {
     event.preventDefault();
     const form = event.currentTarget;
     attempt(box, form.querySelector('button'), async () => {
       const credentials = { email: form.elements.email.value.trim(), password: form.elements.password.value };
-      const result = signup
-        ? await client.auth.signUp({ ...credentials, options: { emailRedirectTo: location.origin + location.pathname + '#account', data: { nickname: form.elements.nickname.value.trim() } } })
-        : await client.auth.signInWithPassword(credentials);
-      if (result.error) throw result.error;
-      if (result.data.session) await showProfile(box, language, result.data.user);
-      else { form.reset(); status(box, t(language, 'Proveri email i potvrdi nalog, pa se prijavi.', 'Check your email to confirm your account, then sign in.')); }
+      const result = await request(language, {
+        action: signup ? 'register' : 'login',
+        ...credentials,
+        ...(signup ? { nickname: form.elements.nickname.value.trim(), adult: form.querySelector('input[type="checkbox"]').checked } : {})
+      });
+      await showProfile(box, language, result.user);
+
     });
   });
 }
 
-async function showProfile(box, language, user) {
-  const { data: profile, error } = await client.from('profiles').select('*').eq('id', user.id).single();
-  if (error) { status(box, t(language, 'Profil nije dostupan. Proveri podešavanje baze.', 'Profile unavailable. Check the database setup.')); return; }
+async function showProfile(box, language, user, photos) {
+  const profile = user;
+  if (!photos) photos = (await request(language)).photos;
   box.innerHTML = '<h2 id="panel-title">' + t(language, 'Moj profil', 'My profile') + '</h2><form class="fields">' +
     field(t(language, 'Nadimak', 'Nickname'), 'nickname', 'text', 'minlength="2" maxlength="40"') +
     '<label>' + t(language, 'Grad', 'City') + '<select name="city"><option>Beograd</option><option>Novi Sad</option></select></label><label>' +
@@ -69,35 +84,36 @@ async function showProfile(box, language, user) {
   form.addEventListener('submit', event => {
     event.preventDefault();
     attempt(box, form.querySelector('button'), async () => {
-      const { error } = await client.from('profiles').update(Object.fromEntries(new FormData(form))).eq('id', user.id);
-      if (error) throw error;
+      await request(language, { action: 'profile', ...Object.fromEntries(new FormData(form)) });
       status(box, t(language, 'Profil je sačuvan.', 'Profile saved.'));
     });
   });
   box.querySelector('.signout').addEventListener('click', event => attempt(box, event.currentTarget, async () => {
-    const { error } = await client.auth.signOut();
-    if (error) throw error;
+    await request(language, { action: 'logout' });
     showAuth(box, language, false);
   }));
-  for (let slot = 1; slot <= 3; slot++) await photoSlot(box, language, user.id, slot);
+  for (let slot = 1; slot <= 3; slot++) await photoSlot(box, language, slot, photos.includes(slot));
 }
 
-async function photoSlot(box, language, userId, slot) {
+async function photoSlot(box, language, slot, present) {
   const element = document.createElement('div');
   element.className = 'photo-slot';
   const label = t(language, 'Slika ', 'Photo ') + slot;
   element.innerHTML = '<div class="photo-preview"></div><label>' + label + '<input type="file" accept="image/jpeg,image/png,image/webp"></label><button class="button secondary" type="button">' + t(language, 'Ukloni sliku', 'Remove photo') + '</button>';
   box.querySelector('.photos').append(element);
-  const path = userId + '/' + slot;
-  const storage = client.storage.from('profile-photos');
   const remove = element.querySelector('button');
-  async function refresh() {
-    const { data, error } = await storage.createSignedUrl(path, 300);
+  function refresh() {
     const preview = element.querySelector('.photo-preview');
     preview.replaceChildren();
-    if (!error) { const image = document.createElement('img'); image.src = data.signedUrl; image.alt = label; preview.append(image); }
+    remove.disabled = !present;
+    if (present) {
+      const image = document.createElement('img');
+      image.src = '/api/photo?slot=' + slot + '&v=' + Date.now();
+      image.alt = label;
+      preview.append(image);
+    }
   }
-  await refresh();
+  refresh();
   element.querySelector('input').addEventListener('change', event => {
     const input = event.currentTarget;
     const file = input.files[0];
@@ -107,18 +123,31 @@ async function photoSlot(box, language, userId, slot) {
       try {
         if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5242880) throw new Error(t(language, 'Izaberi JPEG, PNG ili WebP do 5 MB.', 'Choose a JPEG, PNG or WebP up to 5 MB.'));
         const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         bitmap.close();
-        const { error } = await storage.upload(path, file, { upsert: true, contentType: file.type });
-        if (error) throw error;
-        await refresh();
+        const optimized = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', 0.82));
+        if (!optimized || optimized.size > 2097152) throw new Error(t(language, 'Izaberi manju sliku.', 'Choose a smaller photo.'));
+        const data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(optimized);
+        });
+        await request(language, { action: 'upload', slot, data });
+        present = true;
+        refresh();
         status(box, t(language, 'Slika je sačuvana.', 'Photo saved.'));
       } finally { input.value = ''; input.disabled = false; }
     });
   });
   remove.addEventListener('click', () => attempt(box, remove, async () => {
-    const { error } = await storage.remove([path]);
-    if (error) throw error;
-    await refresh();
+    await request(language, { action: 'remove', slot });
+    present = false;
+    refresh();
     status(box, t(language, 'Slika je uklonjena.', 'Photo removed.'));
   }));
 }

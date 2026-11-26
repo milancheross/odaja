@@ -29,8 +29,5 @@ await build({
   bundle: true,
   format: 'esm',
   minify: true,
-  define: {
-    'SUPABASE_URL': JSON.stringify(process.env.PUBLIC_SUPABASE_URL || ''),
-    'SUPABASE_KEY': JSON.stringify(process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY || ''),
-  },
+
 });

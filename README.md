@@ -10,14 +10,19 @@ Pokreni `npm run dev` i otvori `http://localhost:4173/`. Potrebni su Node.js i P
 
 ## Opseg prototipa
 
-Oglasi i profili su izmišljeni. Filteri, navigacija i obrasci su interaktivni. Nacrt organizatora čuva se samo u trenutnom pregledaču. Obrasci ne šalju poruke, prijave niti rezervacije. Za upotrebu sa stvarnim korisnicima potrebni su autentifikacija, baza, moderacija i tok potvrde prijava, upita i poziva za razgovor.
+Oglasi i profili su izmišljeni. Filteri, navigacija i obrasci su interaktivni. Nacrt organizatora čuva se samo u trenutnom pregledaču. Demo obrasci ne šalju poruke, prijave niti rezervacije. Registracija i privatne fotografije koriste Neon. Moderacija i stvarni razgovori među članovima tek treba da budu dodati.
 
 ## Registracija i slike
 
-Za aktivaciju potreban je Supabase projekat. Pokrenuti supabase/schema.sql jednom u SQL editoru. U Vercel produkcijsko okruženje dodati PUBLIC_SUPABASE_URL i PUBLIC_SUPABASE_PUBLISHABLE_KEY (javni publishable ili anon ključ), pa ponoviti build. Service role ključ se nikada ne postavlja u frontend.
+Registracija, prijava i privatne fotografije koriste Neon PostgreSQL preko Vercel funkcija u api/.
+DATABASE_URL je serverska promenljiva koju postavlja Neon integracija. Lozinke se čuvaju kao scrypt hash, a nasumične sesije u HttpOnly Secure SameSite kolačiću. U bazi se čuva samo hash sesije.
 
-U Supabase Auth podesiti Site URL na https://odaja.vercel.app i dozvoliti redirect URL-ove za / i /en/. Uključiti potvrdu emaila. Tri privatna storage slota po korisniku ograničavaju broj fotografija i pri konkurentnom uploadu. Maksimum je 5 MB po slici, JPEG/PNG/WebP. Fotografije su za sada vidljive vlasniku profila.
+Tabele sa prefiksom odaja_ kreiraju se u transakciji pri prvom API zahtevu. Tri numerisana slota po korisniku i SQL ograničenja garantuju najviše tri fotografije i pri konkurentnim uploadovima. Fotografije su dostupne samo vlasniku profila. Klijent prihvata JPEG/PNG/WebP do 5 MB, optimizuje fotografiju, a server proverava i ponovo kodira WebP do 2 MB bez EXIF metapodataka.
 
-Pedeset izmišljenih profila imaju jasno označene automatske demo odgovore. Razgovori ostaju u pregledaču. Stvarno dopisivanje između korisnika zahteva narednu implementaciju pristanka, privatnih razgovora i moderacije.
+Registracija koristi email i lozinku bez email potvrde. Oporavak zaboravljene lozinke i slanje emailova nisu implementirani.
+
+Pedeset izmišljenih profila imaju jasno označene automatske demo odgovore. Razgovori ostaju u pregledaču.
 
 Tri spa oglasa su nepotvrđeni predlozi. Izvori potvrđuju postojanje spa centara, dok termini, zakup i organizatori čekaju potvrdu.
+
+Lokalni statički pregled pokreće npm run dev. Za lokalni API koristiti Vercel CLI sa Neon okruženjem.
